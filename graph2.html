@@ -1,0 +1,90 @@
+<html>
+<head><title>Sound input</title></head>
+<body style="text-align: center;">
+<canvas id="audio-visualisation" width="400" height="250" style="margin-top: 20px;border-radius: 8px;"></canvas>
+<script>
+
+// Create audio context
+var context = new (window.AudioContext || window.webkitAudioContext)();
+
+// Create analyser node
+var analyser = context.createAnalyser();
+
+// Small polyfill to use the correct "getUserMedia" function
+navigator.getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
+
+// Try to get user's authorization to access the audio user input.
+navigator.getUserMedia({ audio: true }, function(stream) {
+	
+	// Create a media stream source from audio user input
+	var inputNode = context.createMediaStreamSource(stream);
+
+	// Create a gain node
+	var masterVolume = context.createGain();
+
+	// Create a delay node
+	var delayNode = context.createDelay();
+
+	// Create a gain node that will serve as feedback for the delay
+	var feedbackGainNode = context.createGain();
+
+	// Adjust node parameters
+	feedbackGainNode.gain.value = 0.0;
+	delayNode.delayTime.value = 0.0;
+
+	// Make connections
+	inputNode.connect(masterVolume);
+	inputNode.connect(delayNode)
+	delayNode.connect(masterVolume);
+	delayNode.connect(feedbackGainNode);
+	feedbackGainNode.connect(delayNode);
+	masterVolume.connect(analyser)
+	analyser.connect(context.destination);
+
+}, function(error) {
+	console.log(error);
+});
+
+
+
+/**
+ * Manages waveform visualization
+ */
+var canvasContext = document.getElementById('audio-visualisation').getContext('2d');
+var waveformData = new Uint8Array(analyser.frequencyBinCount);
+
+function draw() {
+	visualizeWaveform = requestAnimationFrame(draw);
+	analyser.getByteTimeDomainData(waveformData);
+	
+	canvasContext.fillStyle = 'rgb(200, 200, 200)';
+	canvasContext.fillRect(0, 0, 400, 250);
+	canvasContext.lineWidth = 2;
+	canvasContext.strokeStyle = 'rgb(0, 0, 0)';
+
+	canvasContext.beginPath();
+
+	var sliceWidth = 400 * 1.0 / analyser.frequencyBinCount;
+	var x = 0;
+
+	for(var i = 0; i < analyser.frequencyBinCount; i++) {
+
+		var v = waveformData[i] / 128.0;
+		var y = v * 250 / 2;
+
+		if(i === 0)
+			canvasContext.moveTo(x, y);
+		else
+			canvasContext.lineTo(x, y);
+
+		x += sliceWidth;
+	}
+
+	canvasContext.lineTo(400, 250/2);
+	canvasContext.stroke();
+};
+draw();
+
+</script>
+</body>
+</html>

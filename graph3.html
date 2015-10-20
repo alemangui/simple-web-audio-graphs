@@ -1,0 +1,96 @@
+<html>
+<head><title>External file</title></head>
+<body style="text-align: center;">
+<canvas id="audio-visualisation" width="400" height="250" style="margin-top: 20px;border-radius: 8px;"></canvas>
+<script>
+
+// Create audio context
+var context = new (window.AudioContext || window.webkitAudioContext)();
+
+// Create analyser node
+var analyser = context.createAnalyser();
+
+// Create request to fetch the audio file
+var request = new XMLHttpRequest();
+
+// Initialize GET request
+request.open('GET', './synth.m4a', true);
+
+// We specify that we expect a raw binary data buffer that will contain the audio
+request.responseType = 'arraybuffer';
+
+
+request.onload = function(e) {
+	
+	// Decode audio file data contained in the array buffer
+	context.decodeAudioData(e.target.response, function(buffer) {
+
+		// Create buffer source node
+		var synth = context.createBufferSource();
+
+		// Set parameters of buffer node
+		synth.loop = true;
+		synth.buffer = buffer;
+
+		// Make necessary connections
+		synth.connect(analyser);
+		analyser.connect(context.destination);
+
+		// Start playing the audio file
+		synth.start();
+	});
+};
+
+// Error management
+request.onreadystatechange = function(event) {
+	if (request.readyState === 4 && request.status !== 200)
+		console.error('Error while fetching audio. ' + request.statusText);
+};
+
+// Send request
+request.send();
+
+
+
+
+/**
+ * Manages waveform visualization
+ */
+var canvasContext = document.getElementById('audio-visualisation').getContext('2d');
+var waveformData = new Uint8Array(analyser.frequencyBinCount);
+
+function draw() {
+	visualizeWaveform = requestAnimationFrame(draw);
+	analyser.getByteTimeDomainData(waveformData);
+	
+	canvasContext.fillStyle = 'rgb(200, 200, 200)';
+	canvasContext.fillRect(0, 0, 400, 250);
+	canvasContext.lineWidth = 2;
+	canvasContext.strokeStyle = 'rgb(0, 0, 0)';
+
+	canvasContext.beginPath();
+
+	var sliceWidth = 400 * 1.0 / analyser.frequencyBinCount;
+	var x = 0;
+
+	for(var i = 0; i < analyser.frequencyBinCount; i++) {
+
+		var v = waveformData[i] / 128.0;
+		var y = v * 250 / 2;
+
+		if(i === 0)
+			canvasContext.moveTo(x, y);
+		else
+			canvasContext.lineTo(x, y);
+
+		x += sliceWidth;
+	}
+
+	canvasContext.lineTo(400, 250/2);
+	canvasContext.stroke();
+};
+draw();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<html>
+<head><title>Oscillator</title></head>
+<body style="text-align: center;">
+<canvas id="audio-visualisation" width="400" height="250" style="margin-top: 20px;border-radius: 8px;"></canvas>
+<script>
+
+// Create audio context
+var context = new (window.AudioContext || window.webkitAudioContext)();
+
+// Create an oscillator source node
+var oscillator = context.createOscillator();
+
+// Create a gain node
+var gain = context.createGain();
+
+// Create an analyser node
+var analyser = context.createAnalyser();
+
+// Set parameters of the oscillator node
+oscillator.frequency.value = 120;
+oscillator.type = 'sine';
+
+// Make connections
+oscillator.connect(gain);
+gain.connect(analyser);
+analyser.connect(context.destination);
+
+// Start oscillator
+oscillator.start();
+
+
+
+/**
+ * Manages waveform visualization
+ */
+var canvasContext = document.getElementById('audio-visualisation').getContext('2d');
+var waveformData = new Uint8Array(analyser.frequencyBinCount);
+
+function draw() {
+	visualizeWaveform = requestAnimationFrame(draw);
+	analyser.getByteTimeDomainData(waveformData);
+	
+	canvasContext.fillStyle = 'rgb(200, 200, 200)';
+	canvasContext.fillRect(0, 0, 400, 250);
+	canvasContext.lineWidth = 2;
+	canvasContext.strokeStyle = 'rgb(0, 0, 0)';
+
+	canvasContext.beginPath();
+
+	var sliceWidth = 400 * 1.0 / analyser.frequencyBinCount;
+	var x = 0;
+
+	for(var i = 0; i < analyser.frequencyBinCount; i++) {
+
+		var v = waveformData[i] / 128.0;
+		var y = v * 250 / 2;
+
+		if(i === 0)
+			canvasContext.moveTo(x, y);
+		else
+			canvasContext.lineTo(x, y);
+
+		x += sliceWidth;
+	}
+
+	canvasContext.lineTo(400, 250/2);
+	canvasContext.stroke();
+};
+draw();
+
+</script>
+</body>
+</html>
